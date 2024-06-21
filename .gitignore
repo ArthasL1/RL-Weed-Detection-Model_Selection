@@ -1,2 +1,3 @@
-# Ignore all .idea folder content
 .idea/
+RL_models/
+__pycache__/

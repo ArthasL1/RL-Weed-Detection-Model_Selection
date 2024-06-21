@@ -50,11 +50,13 @@ class WeedDetectionEnv(gym.Env):
         # Useful parameter
         self.total_steps = 0
         self.total_episodes = 0
-        self.episode_in_process = False
+        self.episode_in_process = False #
+        self.done_episode = False
 
     def step(self, action):
         self.total_steps += 1
         self.episode_in_process = True
+        self.done_episode = False
         # Update environment state based on action
         self.state['image'] = np.random.randint(0, 256, (640, 640), dtype=np.uint8)
         self.state['energy'] = max(0, self.state['energy'] - (action + 1)*10)
@@ -71,6 +73,7 @@ class WeedDetectionEnv(gym.Env):
         truncated = False
 
         if terminated or truncated:
+            self.done_episode = True
             self.total_episodes += 1
             self.episode_in_process = False
 
@@ -89,4 +92,5 @@ class WeedDetectionEnv(gym.Env):
         }
         self.obs = self.state
         self.info = {}
+
         return self.obs, self.info
