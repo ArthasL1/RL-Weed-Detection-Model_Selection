@@ -130,7 +130,7 @@ def train_RL(train_env, eval_env, model_name, save_path, model_type="PPO", learn
     plt.plot(reward_eval_callback.episode_steps)
     plt.xlabel('Episode')
     plt.ylabel('Steps')
-    plt.title(f'{model_type} Learning Curve: Length')
+    plt.title(f'{model_type} Learning Curve: Episode Length')
     plt.savefig(save_path + "train_length_plot.png")
     plt.clf()
 
@@ -138,7 +138,7 @@ def train_RL(train_env, eval_env, model_name, save_path, model_type="PPO", learn
     mean_reward_np = np.asarray(reward_eval_callback.eval_mean_rewards)
     std_reward_np = np.asarray(reward_eval_callback.eval_std_rewards)
     plt.title(f"{model_type} Evaluation Curve: Rewards")
-    plt.fill_between(range(len(mean_reward_np)), mean_reward_np - std_reward_np, mean_reward_np +
+    plt.fill_between(range(1, len(mean_reward_np) + 1), mean_reward_np - std_reward_np, mean_reward_np +
                      std_reward_np, alpha=0.2)
     plt.plot(range(1, len(mean_reward_np) + 1), mean_reward_np)
     plt.xlabel(f"Evaluation Count")
@@ -148,13 +148,13 @@ def train_RL(train_env, eval_env, model_name, save_path, model_type="PPO", learn
 
     mean_episode_np = np.asarray(reward_eval_callback.eval_mean_episode_length)
     std_episode_np = np.asarray(reward_eval_callback.eval_std_episode_length)
-    plt.title(f"{model_type} Evaluation Curve: Rewards")
-    plt.fill_between(range(len(mean_episode_np)), mean_episode_np - std_episode_np, mean_episode_np +
+    plt.title(f"{model_type} Evaluation Curve: Episode Length")
+    plt.fill_between(range(1, len(mean_reward_np) + 1), mean_episode_np - std_episode_np, mean_episode_np +
                      std_episode_np, alpha=0.2)
     plt.plot(range(1, len(mean_episode_np) + 1), mean_episode_np)
     plt.xlabel(f"Evaluation Count")
-    plt.ylabel("Mean Reward")
-    plt.savefig(save_path + "eval_rewards_plot.png")
+    plt.ylabel("Mean Steps")
+    plt.savefig(save_path + "eval_length_plot.png")
     plt.clf()
 
 
