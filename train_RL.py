@@ -11,6 +11,7 @@ from stable_baselines3.common.callbacks import EvalCallback, StopTrainingOnRewar
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import BaseCallback
 from config import parse_arguments
+from run_single_inference import SingleImageInference
 
 
 class RewardEvalCallback(BaseCallback):
@@ -70,7 +71,7 @@ class RewardEvalCallback(BaseCallback):
             self.model.save(self.save_path + "best_model")
 
 
-def eval_RL(eval_env, model, eval_episodes=20, deterministic=False):
+def eval_RL(eval_env, model, eval_episodes=8, deterministic=False):
     eval_env.in_eval = True
     all_episode_rewards = []
     all_episode_length = []
@@ -96,10 +97,6 @@ def eval_RL(eval_env, model, eval_episodes=20, deterministic=False):
     return mean_reward, std_reward, mean_episode_length, std_episode_length
 
 
-
-
-
-
 def train_RL(train_env, eval_env, model_name, save_path, model_type="PPO", learn_timesteps=20480, RL_n_steps=2048):
 
     # Define RL model
@@ -119,6 +116,11 @@ def train_RL(train_env, eval_env, model_name, save_path, model_type="PPO", learn
     # Save the last model (optional, maybe unnecessary)
     model.save(save_path + "final_model")
 
+    # Plot the learning curve and evaluation curve
+    plot_callback(reward_eval_callback)
+
+
+def plot_callback(reward_eval_callback):
     # Plot the learning curve
     plt.plot(reward_eval_callback.episode_rewards)
     plt.xlabel('Episode')
@@ -160,8 +162,9 @@ def train_RL(train_env, eval_env, model_name, save_path, model_type="PPO", learn
 
 if __name__ == "__main__":
 
-    train_env = WeedDetectionEnv()
-    eval_env = WeedDetectionEnv()
+    train_env = WeedDetectionEnv(dataset_dir="./image_data/geok_grouped/train")
+    eval_env = WeedDetectionEnv(dataset_dir="./image_data/geok_grouped/valid",
+                                group_selection_mode="sequential")  # TODO: set path to valid or test dir
 
     # Get arguments from command line
     args = parse_arguments()
@@ -172,6 +175,29 @@ if __name__ == "__main__":
 
     save_path = f"./RL_models/{model_name}/"
     os.makedirs(save_path, exist_ok=True)
+    snn_interface = SingleImageInference(
+        dataset="geok",
+        # Tuple of two numbers: (128, 128), (256, 256), or (512, 512)
+        image_resolution=(
+            512,
+            512,
+        ),
+        # slim or squeeze
+        model_architecture="slim",
+        model_path="SNN_models/geok_slim_final.pt",
+        # Set to a positive integer to select a specific image from the dataset
+        fixed_image=-1,
+        # Do you want to generate a mask/image overlay
+        save_image=False,
+        # Was segmentation model trained using transfer learning
+        is_trans=False,
+        # Was segmentation model trained with find_best_fitting (utilising
+        # model that has the highest difference in iou between widths
+        is_best_fitting=False,)
+
+    train_env.set_snn_interface(snn_interface)
+    eval_env.set_snn_interface(snn_interface)
+
     train_RL(train_env, eval_env, model_name, save_path, model_type=model_type, learn_timesteps=learn_timesteps,
              RL_n_steps=RL_n_steps)
 
