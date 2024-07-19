@@ -125,47 +125,54 @@ class SlimSqueezeUNet(nn.Module):
         ]
 
     def forward(self, X):
-        x01 = self.conv1(X)
-        x02 = self.maxpool1(x01)
+        x01 = self.conv1(X)  # [1, 64/32/16/8, 256, 256]
+        x02 = self.maxpool1(x01)  # [1, 64, 128, 128]
 
-        x03 = self.fire01(x02)
-        x04 = self.fire02(x03)
-        x05 = self.maxpool2(x04)
+        x03 = self.fire01(x02)  # [1, 128/64/32/16, 128, 128]
+        x04 = self.fire02(x03)  # [1, 128, 128, 128]
+        x05 = self.maxpool2(x04)  # [1, 128, 64, 64]
 
-        x06 = self.fire03(x05)
-        x07 = self.fire04(x06)
-        x08 = self.maxpool3(x07)
+        x06 = self.fire03(x05)  # [1, 256/128/64/32, 64, 64]
+        x07 = self.fire04(x06)  # [1, 256, 64, 64]
+        x08 = self.maxpool3(x07)  # [1, 256, 32, 32]
 
-        x09 = self.fire05(x08)
-        x10 = self.fire06(x09)
-        x11 = self.fire07(x10)
-        x12 = self.fire08(x11)
+        x09 = self.fire05(x08)  # [1, 384/192/96/48, 32, 32]
+        x10 = self.fire06(x09)  # [1, 384, 32, 32]
+        x11 = self.fire07(x10)  # [1, 512, 32, 32]
+        x12 = self.fire08(x11)  # [1, 512, 32, 32]
 
         # if self.dropout:
         #     x12 = self.dropout(x12)
 
-        a01 = self.conv2(x12)
-        y01 = torch.cat((a01, x10), dim=1)
-        y02 = self.fire09(y01)
+        a01 = self.conv2(x12)  # [1, 192, 32, 32]
+        y01 = torch.cat((a01, x10), dim=1)  # [1, 576, 32, 32]
+        y02 = self.fire09(y01)  # [1, 384, 32, 32]
 
-        a02 = self.conv3(y02)
-        y03 = torch.cat((a02, x08), dim=1)
-        y04 = self.fire10(y03)
+        a02 = self.conv3(y02)  # [1, 128, 32, 32]
+        y03 = torch.cat((a02, x08), dim=1)  # [1, 384, 32, 32]
+        y04 = self.fire10(y03)  # [1, 256, 32, 32]
 
-        a03 = self.conv4(y04)
-        y05 = torch.cat((a03, x05), dim=1)
-        y06 = self.fire11(y05)
+        a03 = self.conv4(y04)  # [1, 64, 64, 64]
+        y05 = torch.cat((a03, x05), dim=1)  # [1, 192, 64, 64]
+        y06 = self.fire11(y05)  # [1, 128, 64, 64]
 
-        a04 = self.conv5(y06)
-        y07 = torch.cat((a04, x02), dim=1)
-        y08 = self.fire12(y07)
+        a04 = self.conv5(y06)  # [1, 32, 128, 128]
+        y07 = torch.cat((a04, x02), dim=1)  # [1, 96, 128, 128]
+        y08 = self.fire12(y07)  # [1, 64, 128, 128]
 
-        y09 = nn.Upsample(scale_factor=2)(y08)
-        y10 = torch.cat((y09, x01), dim=1)
-        y11 = self.conv6(y10)
+        y09 = nn.Upsample(scale_factor=2)(y08)  # [1, 64, 256, 256]
+        y10 = torch.cat((y09, x01), dim=1)  # [1, 128, 256, 256]
+        y11 = self.conv6(y10)  # [1, 64, 256, 256]
 
-        y12 = nn.Upsample(scale_factor=2)(y11)
-        y13 = self.conv7(y12)
+        y12 = nn.Upsample(scale_factor=2)(y11)  # [1, 64, 512, 512]
+        y13 = self.conv7(y12)  # [1, 2, 512, 512]
+
+        # print(x01.shape, x02.shape, x03.shape, x04.shape, x05.shape, x06.shape)
+        # print(x07.shape, x08.shape, x09.shape, x10.shape, x11.shape, x12.shape)
+        # print(a01.shape, a02.shape, a03.shape, a04.shape)
+        # print(y01.shape, y02.shape, y03.shape, y04.shape, y05.shape, y06.shape)
+        # print(y07.shape, y08.shape, y09.shape, y10.shape, y11.shape, y12.shape)
+        # print(y13.shape)
 
         return y13
 

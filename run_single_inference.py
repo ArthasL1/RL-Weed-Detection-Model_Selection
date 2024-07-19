@@ -348,8 +348,8 @@ if __name__ == "__main__":
             512,
         ),
         # slim or squeeze
-        model_architecture="slim",
-        model_path="SNN_models/geok_slim_final.pt",
+        model_architecture="squeeze",
+        model_path="SNN_models/geok_squeeze_final.pt",
         # Set to a positive integer to select a specific image from the dataset, otherwise random
         fixed_image=22,
         # Do you want to generate a mask/image overlay

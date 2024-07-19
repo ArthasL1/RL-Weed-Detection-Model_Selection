@@ -30,16 +30,18 @@ class SlimUNet(nn.Module):
 
     def forward(self, X):
         x1 = self.conv1(X)
+        # print(f"conv1: {x1.shape}")  # [1, 64/48/32/16, 512, 512]
         x2 = self.maxpool(x1)
+        # print(f"maxpool: {x2.shape}")  # [1, 64/48/32/16, 256, 256]
         x2 = self.conv2(x2)
-        print(f"conv2: {x2.shape}")
+        # print(f"conv2: {x2.shape}")  # [1, 128/96/64/32, 256, 256]
         y2 = self.upconv2_ex(x2)
-        print(f"upconv2_ex: {y2.shape}")
+        # print(f"upconv2_ex: {y2.shape}")  # [1, 64/48/32/16, 512, 512]
         y2 = torch.cat((x1, y2), dim=1)
         y2 = self.upconv2(y2)
-        print(f"upconv2: {y2.shape}")
+        # print(f"upconv2: {y2.shape}")  # [1, 64/48/32/16, 512, 512]
         y1 = self.upconv1(y2)
-        print(f"upconv1: {y1.shape}")
+        # print(f"upconv1: {y1.shape}")  # [1, 2, 512, 512]
         return y1
 
     def set_width(self, width):
