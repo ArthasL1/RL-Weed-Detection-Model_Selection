@@ -13,11 +13,12 @@ from torchvision.utils import draw_segmentation_masks
 from agriadapt.segmentation import settings
 from agriadapt.segmentation.data.data import ImageImporter
 from agriadapt.segmentation.helpers.metricise import Metricise
-from agriadapt.segmentation.models.slim_squeeze_unet import SlimSqueezeUNetCofly, SlimSqueezeUNet
+from agriadapt.segmentation.models.slim_squeeze_unet import SlimSqueezeUNet
+# from agriadapt.segmentation.models.slim_squeeze_unet import SlimSqueezeUNetCofly
 from agriadapt.segmentation.models.slim_unet import SlimUNet
 from shapely import Polygon, Point
 from numpy import floor, ceil
-
+from torch import ones, zeros, cat
 
 class SingleImageInference:
     def __init__(
@@ -40,6 +41,18 @@ class SingleImageInference:
             self.image_dir = "agriadapt/segmentation/data/agriadapt/NN_labeled_samples_salad_infesting_plants.v1i.yolov7pytorch/test/images/"
         elif dataset == "geok":
             self.image_dir = "agriadapt/segmentation/data/geok/test/images/"
+        elif dataset == "tobacco":
+            fields = [
+                "119",
+                "120/test/RGB",
+                "133/test/RGB",
+                "134/test/RGB",
+                "147",
+                "154/test/RGB",
+                "163/test/RGB",
+                "171/test/RGB",
+            ]
+            self.image_dir = "agriadapt/segmentation/data/"
         else:
             raise ValueError("Invalid dataset selected.")
         assert model_architecture in ["slim", "squeeze"]
@@ -53,10 +66,12 @@ class SingleImageInference:
             model_key += "_opt"
         if model_architecture == "slim":
             self.model = SlimUNet(out_channels=2)
-        elif dataset == "cofly" or is_trans:
-            self.model = SlimSqueezeUNetCofly(out_channels=2)
-        elif dataset == "geok":
+        elif model_architecture == "squeeze":
             self.model = SlimSqueezeUNet(out_channels=2)
+        # elif dataset == "cofly" or is_trans:
+        #     self.model = SlimSqueezeUNetCofly(out_channels=2)
+        # elif dataset == "geok":
+        #     self.model = SlimSqueezeUNet(out_channels=2)
 
         # self.model.load_state_dict(
         #     torch.load(
@@ -81,6 +96,8 @@ class SingleImageInference:
         #self.adaptive_width = AdaptiveWidth(model_key)
         self.tensor_to_image = ImageImporter(dataset).tensor_to_image
         self.random_image_index = -1
+
+        self.model.eval()
 
     def _get_random_image_path(self):
         images = os.listdir(self.project_path + self.image_dir)
@@ -282,14 +299,36 @@ class SingleImageInference:
 
         return results
 
-    def infer_from_rl(self, image_path, width=0.25):
-        image, mask = self._get_single_image_from_rl(image_path)
+    def infer_from_rl(self, image_path, width, snn_dataset):
+        if snn_dataset == "geok":
+            image, mask = self._get_single_image_from_rl(image_path)
+        elif snn_dataset == "tobacco":
+            image, mask = self._get_single_tobacco_image_from_rl(image_path)
+        else:
+            print(f"Invalid image_path = {image_path}")
         self.model.set_width(width)
         y_pred = self.model.forward(image)
         metrics = Metricise()
         metrics.calculate_metrics(mask, y_pred, "test")
         results = metrics.report(None)
         return results
+
+        # result = (width**0.5)
+        # noise = np.random.normal(0, 0.1 * result)
+        # result += noise
+        # return {"test/iou/weeds": result}
+
+    def infer_from_rl_latent_features(self, image_path, output_layer, snn_dataset, width=1.00):
+        if snn_dataset == "geok":
+            image, mask = self._get_single_image_from_rl(image_path)
+        elif snn_dataset == "tobacco":
+            image, mask = self._get_single_tobacco_image_from_rl(image_path)
+        else:
+            print(f"Invalid image_path = {image_path}")
+        self.model.set_width(width)
+        latent_features = self.model.forward(image, output_layer)
+        features_np = latent_features.detach().cpu().numpy().flatten()
+        return features_np
 
     def _get_single_image_from_rl(self, image_path):
         img = Image.open(image_path)
@@ -333,15 +372,63 @@ class SingleImageInference:
 
         return img, mask
 
+    def _get_single_tobacco_image_from_rl(self, image_path):
+
+        # img_dir = self.image_dir / "data"
+        # mask_dir = self.image_dir / "maskref"
+        label_path = image_path[:-3].replace("images", "labels") + "png"
+
+        image = Image.open(image_path)
+        create_tensor = transforms.ToTensor()
+        smaller = transforms.Resize(self.image_resolution)
+
+        img = smaller(image)
+        create_tensor = transforms.ToTensor()
+        img = create_tensor(img)
+
+        # We get values 0, 127, and 256. We transform them to 0, 1, 2 (background, tobacco, weeds)
+
+        msk = torch.round(create_tensor(Image.open(label_path)) * 2)
+        msk = torch.round(smaller(msk))
+
+        msk = self._construct_tobacco_mask(msk)
+
+        img = img.to("cuda:0")
+        msk = msk.to("cuda:0")
+        img = img[None, :]
+        msk = msk[None, :]
+        return img, msk
+
+    def _construct_tobacco_mask(self, mask_class):
+        """
+        We have three different classes -> background (0), tobacco (1), and weeds (2).
+        Therefore, we need to construct a 3-channel binary mask for each class category.
+        Alternatively we can only create a 2-channel one, counting tobacco as the background (this is currently implemented).
+        """
+        width, height = mask_class.shape[1:3]
+        mask = cat(
+            (
+                ones(1, width, height),
+                zeros(1, width, height),
+            ),
+            0,
+        )
+        # Then, label by label, add to other classes and remove from background.
+        for x in range(width):
+            for y in range(height):
+                if mask_class[0][x][y] == 2:
+                    mask[0][x][y] = 0
+                    mask[1][x][y] = 1
+        return mask
 
 if __name__ == "__main__":
     # Run this once to download the new dataset
     # setup_env()
-
+    snn_dataset = "tobacco"
     si = SingleImageInference(
         # geok (new dataset)
         # dataset="geok",
-        dataset="geok",
+        dataset=snn_dataset,
         # Tuple of two numbers: (128, 128), (256, 256), or (512, 512)
         image_resolution=(
             512,
@@ -349,7 +436,7 @@ if __name__ == "__main__":
         ),
         # slim or squeeze
         model_architecture="squeeze",
-        model_path="SNN_models/geok_squeeze_final.pt",
+        model_path=f"SNN_models/{snn_dataset}_squeeze_final.pt",
         # Set to a positive integer to select a specific image from the dataset, otherwise random
         fixed_image=22,
         # Do you want to generate a mask/image overlay
@@ -377,12 +464,28 @@ if __name__ == "__main__":
     # results = si.infer(width=1.0)
     # print("1.0", results)
 
+    width_list_str = ['0.25', '0.5', '0.75', '1.0']
+    width_list_float = [0.25, 0.5, 0.75, 1.0]
 
-    results = si.infer_from_rl(image_path="./image_data/geok_grouped/valid\images\group_5\image07.jpg", width=0.25)
-    print("0.25", results)
-    results = si.infer_from_rl(image_path="./image_data/geok_grouped/valid\images\group_5\image07.jpg",width=0.5)
-    print("0.5", results)
-    results = si.infer_from_rl(image_path="./image_data/geok_grouped/valid\images\group_5\image07.jpg",width=0.75)
-    print("0.75", results)
-    results = si.infer_from_rl(image_path="./image_data/geok_grouped/valid\images\group_5\image07.jpg",width=1.0)
-    print("1.0", results)
+    for i in range(4):
+        results = si.infer_from_rl(image_path="./image_data/tobacco/images/100.png",
+                                   snn_dataset=snn_dataset,
+                                   width=width_list_float[i])
+        print(width_list_float[i], results)
+
+    # results = si.infer_from_rl(image_path="./image_data/geok_grouped/valid\images\group_5\image07.jpg",width=0.25)
+    # print("0.25", results)
+    # results = si.infer_from_rl(image_path="./image_data/geok_grouped/valid\images\group_5\image07.jpg",width=0.5)
+    # print("0.5", results)
+    # results = si.infer_from_rl(image_path="./image_data/geok_grouped/valid\images\group_5\image07.jpg",width=0.75)
+    # print("0.75", results)
+    # results = si.infer_from_rl(image_path="./image_data/geok_grouped/valid\images\group_5\image07.jpg",width=1.0)
+    # print("1.0", results)
+
+    features = si.infer_from_rl_latent_features(image_path="./image_data/tobacco/images/1.png",
+                                                snn_dataset=snn_dataset,
+                                                output_layer="conv2")
+    print(features.shape[0])
+    print(np.max(features))
+    print(np.min(features))
+    print(features)

@@ -18,17 +18,6 @@ class SwitchableBatchNorm2d(nn.Module):
 
     def forward(self, input):
         idx = settings.WIDTHS.index(self.width_mult)
-        # print(self.bn)
-        # if self.width_mult["knn"] == 0.25:
-        #     idx = 0
-        # elif self.width_mult["knn"] == 0.5:
-        #     idx = 1
-        # elif self.width_mult["knn"] == 0.75:
-        #     idx = 2
-        # elif self.width_mult["knn"] == 1:
-        #     idx = 3
-        # else:
-        #     print(f"{self.width_mult} is unexpected!")
         y = self.bn[idx](input)
         return y
 
@@ -64,19 +53,6 @@ class SlimmableConv2d(nn.Conv2d):
 
     def forward(self, input):
         idx = settings.WIDTHS.index(self.width_mult)
-        # print(self.width_mult)
-        # print(self.in_channels_list)
-        # print(self.out_channels_list)
-        # if self.width_mult["knn"] == 0.25:
-        #     idx = 0
-        # elif self.width_mult["knn"] == 0.5:
-        #     idx = 1
-        # elif self.width_mult["knn"] == 0.75:
-        #     idx = 2
-        # elif self.width_mult["knn"] == 1:
-        #     idx = 3
-        # else:
-        #     print(f"{self.width_mult} is unexpected!")
         self.in_channels = self.in_channels_list[idx]
         self.out_channels = self.out_channels_list[idx]
         self.groups = self.groups_list[idx]
