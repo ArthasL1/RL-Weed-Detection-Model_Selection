@@ -20,8 +20,8 @@ This class simulates the drone's weed detection task, including:
 
 - **Action Space**: Four discrete actions.
 - **Observation Space**: 
-  - Image input (640 x 640 x 3 pixels).
-  - Remaining energy (0 to 120).
+  - Image input (512 x 512 x 3 pixels).
+  - Remaining energy.
   - Remaining images to process (0 to 10).
 
 ### Methods
@@ -59,7 +59,5 @@ The training script will output:
 - Trained model files saved in the specified directory.
 - Learning and evaluation plots saved as images.
 
-## Data and Resources
-The relevant dataset of images of land areas has been collected and is available [here](https://gitlab.fri.uni-lj.si/lrk/agriadapt/) 
 
 
